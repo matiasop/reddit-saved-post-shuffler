@@ -69,7 +69,7 @@ def main():
         password=os.environ.get("PASSWORD"),
     )
     user = reddit.user.me()
-    saved_posts = user.saved(limit=5)
+    saved_posts = user.saved(limit=None)
     summaries = [create_summary(post) for post in saved_posts]
     print(summaries)
     shuffle(summaries)
