@@ -19,15 +19,19 @@ class SubmissionSummary:
 
 def create_summary(post: Submission) -> SubmissionSummary:
     if hasattr(post, "media_metadata"):
-        image_urls = [
-            image_item["s"]["u"] for image_item in post.media_metadata.values()
-        ]
+        try:
+            image_urls = [
+                image_item.get("s", {}).get("u", "")
+                for image_item in post.media_metadata.values()
+            ]
+        except AttributeError:
+            image_urls = []
     else:
         image_urls = [post.url]
     return SubmissionSummary(
         id=post.id,
         title=post.title,
-        author=post.author.name,
+        author=post.author.name if post.author and post.author.name else '',
         image_urls=image_urls,
         link=f"https://www.reddit.com{post.permalink}",
         subreddit=post.subreddit,
@@ -71,10 +75,7 @@ def main():
     user = reddit.user.me()
     saved_posts = user.saved(limit=None)
     summaries = [create_summary(post) for post in saved_posts]
-    print(summaries)
     shuffle(summaries)
-    print()
-    print()
     create_html(summaries)
 
 
