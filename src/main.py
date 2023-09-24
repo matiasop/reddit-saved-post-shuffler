@@ -1,10 +1,39 @@
 from praw.models import Submission
 from dataclasses import dataclass
 from dotenv import load_dotenv
-from random import shuffle
 from airium import Airium
 import praw
 import os
+
+SCRIPT = """
+    function shuffleItems() {
+        const container = document.getElementById('summaries'); // Change to your actual container element
+        const items = container.querySelectorAll(".item");
+        const fragment = document.createDocumentFragment();
+
+        // Convert NodeList to an array for easy shuffling
+        const itemArray = Array.from(items);
+
+        // Shuffle the array
+        for (let i = itemArray.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [itemArray[i], itemArray[j]] = [itemArray[j], itemArray[i]];
+        }
+
+        // Append shuffled items to the fragment
+        itemArray.forEach((item) => {
+            fragment.appendChild(item);
+        });
+
+        // Clear the container and append the shuffled items
+        container.innerHTML = "";
+        container.appendChild(fragment);
+    }
+
+    // Call the shuffleItems function when the button is clicked
+    const shuffleButton = document.getElementById("shuffleButton");
+    shuffleButton.addEventListener("click", shuffleItems);
+"""
 
 
 @dataclass
@@ -38,7 +67,7 @@ def create_summary(post: Submission) -> SubmissionSummary:
     )
 
 
-def create_html(summaries: list[SubmissionSummary]):
+def create_html(summaries: list[SubmissionSummary], filename: str):
     a = Airium()
     a('<!DOCTYPE html>')
     with a.html(lang="en"):
@@ -46,25 +75,30 @@ def create_html(summaries: list[SubmissionSummary]):
             a.meta(charset="utf-8")
             a.title(_t="Saved Posts Shuffler")
         with a.body():
-            for summary in summaries:
-                with a.h1():
-                    a(summary.title)
-                with a.p():
-                    a(f"author: {summary.author}")
-                with a.p():
-                    a(f"subreddit: {summary.subreddit}")
-                with a.a(href=summary.link):
-                    a(f"link: {summary.link}")
-                with a.div():
-                    for image in summary.image_urls:
-                        a.img(src=image, style="max-width: 400px;")
+            with a.button(id="shuffleButton"):
+                a("shuffle posts")
+            with a.div(id="summaries"):
+                for summary in summaries:
+                    with a.div(klass="item"):
+                        with a.h1():
+                            a(summary.title)
+                        with a.p():
+                            a(f"author: {summary.author}")
+                        with a.p():
+                            a(f"subreddit: {summary.subreddit}")
+                        with a.a(href=summary.link):
+                            a(f"{summary.link}")
+                        with a.div():
+                            for image in summary.image_urls:
+                                a.img(src=image, style="max-width: 400px;")
+        with a.script():
+            a(SCRIPT)
 
-    FILENAME = "index.html"
-    with open(FILENAME, "wb") as f:
+    with open(filename, "wb") as f:
         f.write(str(a).encode("utf-8"))
 
 
-def main():
+def get_posts_summaries() -> list:
     reddit = praw.Reddit(
         client_id=os.environ.get("CLIENT_ID"),
         client_secret=os.environ.get("CLIENT_SECRET"),
@@ -75,10 +109,10 @@ def main():
     user = reddit.user.me()
     saved_posts = user.saved(limit=None)
     summaries = [create_summary(post) for post in saved_posts]
-    shuffle(summaries)
-    create_html(summaries)
+    return summaries
 
 
 if __name__ == "__main__":
     load_dotenv()
-    main()
+    summaries = get_posts_summaries()
+    create_html(summaries, "index.html")
